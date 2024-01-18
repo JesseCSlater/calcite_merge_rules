@@ -1,6 +1,13 @@
 import Mathlib.Logic.IsEmpty
 import Mathlib.Init.Data.Nat.Lemmas
 
+/- I am just using this to be able to extract an element from
+   a multiset, by sorting it into a list. However, this is
+   quite pointless since I know all values will be the same anyway,
+   since I only do this to get the unique group_by values out after
+   breaking the table into equivalence classes. This should all be
+   removed in a refactor.
+-/
 abbrev Option.Le : Option ℕ → Option ℕ → Prop
   | some m, some n => m ≤ n
   | none, some _ => False
