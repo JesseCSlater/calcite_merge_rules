@@ -1,5 +1,9 @@
 import CalciteMergeRules.AggCalls
 import CalciteMergeRules.OptionLe
+import Mathlib.Data.Fintype.Basic
+import Mathlib.Data.Multiset.Powerset
+import Mathlib.Data.Multiset.Sort
+import Mathlib.Data.Vector.Basic
 
 abbrev Table (numCols : ℕ) :=
   Multiset (Fin numCols → Option ℕ)
@@ -45,17 +49,33 @@ def Table.apply_agg
   groups.map (λ t =>
     Fin.append (t.get_groups group_by) (t.apply_calls calls))
 
+def Fin.castGT {n m : Nat} (i : Fin (n + m)) (h : i.val ≥ n)
+ : Fin m := ⟨i.val - n,
+  by
+  apply (tsub_lt_iff_left h).mpr
+  simp⟩
+
+def Fin.castLT' {n m : Nat} (i : Fin (n + m)) (h : i.val < n)
+ : Fin n := ⟨i.val, by simp_all⟩
+
 def Aggregate.merge
   (fst : Aggregate I G A) (snd : Aggregate (G + A) G' A') :
-  Option (Aggregate I G A') :=
-  let ⟨_, fst_calls⟩ := fst
-  let ⟨group_by, snd_calls⟩ := snd
-  let ret_calls? :=
-    (λ k =>
-      let (snd_call, j) := snd_calls k
-      let (fst_call, i) := fst_calls j
-      fst_call.merge snd_call
-      |>.map (·, i))
-    |> Vector.mOfFn
-  ret_calls?.map
-    λ v => ⟨Prod.snd ∘ fst_calls ∘ group_by, v.get⟩
+  Option (Aggregate I G' A') :=
+  let ⟨fst_group, fst_calls⟩ := fst
+  let ⟨snd_group, snd_calls⟩ := snd
+  if _ : (∀ g' : Fin G', (snd_group g').val < G)
+     ∧ (∀ a' : Fin A', (snd_calls a').2.val ≥ G)
+  then
+    let ret_calls? :=
+      (λ k =>
+        let (fst_call, i) :=
+          fst_calls ((snd_calls k).2.castGT (by simp_all))
+        fst_call.merge (snd_calls k).1
+        |>.map (·, i))
+      |> Vector.mOfFn
+    ret_calls?.map
+      λ v => ⟨
+        λ g' => (snd_group g').castLT' (by simp_all)
+                      |> fst_group,
+        v.get⟩
+  else none

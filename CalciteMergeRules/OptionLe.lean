@@ -1,4 +1,5 @@
-import Mathlib
+import Mathlib.Logic.IsEmpty
+import Mathlib.Init.Data.Nat.Lemmas
 
 abbrev Option.Le : Option ℕ → Option ℕ → Prop
   | some m, some n => m ≤ n
