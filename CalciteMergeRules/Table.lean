@@ -1,89 +1,55 @@
-import Std
-import Mathlib
-
-abbrev Row (numCols : ℕ) :=
-  Fin numCols → Option ℕ
+import CalciteMergeRules.AggCalls
+import CalciteMergeRules.OptionLe
 
 abbrev Table (numCols : ℕ) :=
-  Multiset (Row numCols)
+  Multiset (Fin numCols → Option ℕ)
 
-inductive AggCall
-  | COUNT
-  | SUM
-  | SUM0
-  | MIN
-  | MAX
+structure Aggregate (I G A : ℕ) where
+  group_by : Fin G → Fin I
+  calls : Fin A → AggCall × Fin I
 
-instance mergeComm (op : α → α → α) [comm : IsCommutative α op]
-  : IsCommutative (Option α) (Option.merge op) where
-  comm := by
-    intro a b
-    unfold Option.merge
-    cases a <;> cases b <;> simp
-    apply comm.comm
-
-instance mergeAssoc (op : α → α → α) [assoc : IsAssociative α op]
-  : IsAssociative (Option α) (Option.merge op) where
-  assoc := by
-    intro a b c
-    unfold Option.merge
-    cases a <;> cases b <;> cases c <;> simp
-    apply assoc.assoc
-
-instance addComm : IsCommutative (ℕ) (Nat.add) where
-  comm := Nat.add_comm
-
-instance addAssoc : IsAssociative (ℕ) (Nat.add) where
-  assoc := Nat.add_assoc
-
-def AggCall.call : AggCall → Multiset (Option ℕ) → Option ℕ
-  | COUNT => some ∘ Multiset.sizeOf
-  | SUM => Multiset.fold (Option.merge Nat.add) none
-  | SUM0 => Multiset.fold (Option.merge Nat.add) (some 0)
-  | MIN => Multiset.fold (Option.merge min) none
-  | MAX => Multiset.fold (Option.merge max) (some 0)
-
-structure Aggregate (I O : ℕ) where
-  calls : Fin O → (AggCall × Fin I)
-  group_by : Finset (Fin I)
-
-def Multiset.classes
-  (m : Multiset α) (eq : α → α → Prop)
-  [DecidableRel eq] [DecidableEq α] :=
+def Table.classes
+  (m : Table I) (group_by : Fin G → Fin I)
+  : Multiset (Table I):=
   let x := m.powerset
-  |>.filter (λ p => ∀ a ∈ p, ∀ b ∈ p, eq a b)
+  |>.filter (λ p =>
+              ∀ row₁ ∈ p,
+              ∀ row₂ ∈ p,
+              ∀ col : Fin G,
+                row₁ (group_by col) =
+                  row₂ (group_by col))
   x.filter (λ p => ∀ q ∈ x, p ≤ q → p = q)
 
+def Table.get_groups
+  (table : Table I) (group_by : Fin G → Fin I)
+  : Fin G → Option ℕ :=
+  λ col =>
+    table.map (λ row => row (group_by col))
+    |>.sort Option.Le
+    |>.head?
+    |>.join
+
 def Table.apply_calls
-  (table : Table i) (calls : Fin o → AggCall × Fin i)
-  : Row o :=
+  (table : Table I) (calls : Fin A → AggCall × Fin I)
+  : Fin A → Option ℕ :=
   λ col =>
     let (call, row) := calls col
     let column := table.map (· row)
     (call.call column)
 
-@[reducible, simp]
 def Table.apply_agg
-  (table : Table i) (agg : Aggregate i o)
-  : Table o :=
+  (table : Table I) (agg : Aggregate I G A)
+  : Table (G + A) :=
   let {calls, group_by} := agg
-  let groups := table.classes (∀ cell ∈ group_by, · cell = · cell)
-  groups.map (Table.apply_calls · calls)
+  let groups := table.classes group_by
+  groups.map (λ t =>
+    Fin.append (t.get_groups group_by) (t.apply_calls calls))
 
-def AggCall.merge : AggCall → AggCall → Option AggCall
-  | SUM0, COUNT => COUNT
-  | SUM, SUM => SUM
-  | SUM0, SUM0 => SUM0
-  | MIN, MIN => MIN
-  | MAX, MAX => MAX
-  | _, _ => none
-
-@[reducible, simp]
 def Aggregate.merge
-  (fst : Aggregate I J) (snd : Aggregate J K) :
-  Option (Aggregate I K) :=
-  let ⟨fst_calls, group_by⟩ := fst
-  let ⟨snd_calls, _⟩ := snd
+  (fst : Aggregate I G A) (snd : Aggregate (G + A) G' A') :
+  Option (Aggregate I G A') :=
+  let ⟨_, fst_calls⟩ := fst
+  let ⟨group_by, snd_calls⟩ := snd
   let ret_calls? :=
     (λ k =>
       let (snd_call, j) := snd_calls k
@@ -92,11 +58,4 @@ def Aggregate.merge
       |>.map (·, i))
     |> Vector.mOfFn
   ret_calls?.map
-    λ v => ⟨v.get, group_by⟩
-
-theorem Aggregate.merge_valid
-  (t : Table I) (fst : Aggregate I J) (snd : Aggregate J K) :
-  fst.merge snd = some merged ->
-    t.apply_agg merged = (t.apply_agg fst |>.apply_agg snd)
-    := by
-    sorry
+    λ v => ⟨Prod.snd ∘ fst_calls ∘ group_by, v.get⟩
