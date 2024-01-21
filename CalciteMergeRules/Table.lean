@@ -12,7 +12,7 @@ import Mathlib.Data.Vector.Basic
    equality between tables without worrying about the order of
    their entries.
 
-   I represent data as Option ℕ because it keeps things a bit simpler
+   I represent data as Option ℕ because it makes things simpler
    than being generic over datatype, but still keeps the complexity
    required to handle most of the mergeable aggregate functions
    which Calcite supports.
@@ -107,7 +107,7 @@ def Table.apply_agg
     Fin.append (t.get_groups group_by) (t.apply_calls calls))
 
 --Cast Fin m into Fin (n + m) in the natural way
-def Fin.castGT {n m : Nat} (i : Fin (n + m)) (h : i.val ≥ n)
+def Fin.castGT {n m : Nat} (i : Fin (n + m)) (h : n ≤ i.val)
  : Fin m := ⟨i.val - n,
   by
   apply (tsub_lt_iff_left h).mpr
@@ -128,20 +128,41 @@ def Fin.castLT' {n m : Nat} (i : Fin (n + m)) (h : i.val < n)
 def Aggregate.merge
   (fst : Aggregate I G A) (snd : Aggregate (G + A) G' A') :
   Option (Aggregate I G' A') :=
-  let ⟨fst_group, fst_calls⟩ := fst
-  let ⟨snd_group, snd_calls⟩ := snd
-  if h : (∀ g' : Fin G', (snd_group g').val < G)
-     ∧ (∀ a' : Fin A', (snd_calls a').2.val ≥ G)
+  if h : (∀ g' : Fin G', (snd.group_by g').val < G)
+     ∧ (∀ a' : Fin A', G ≤ (snd.calls a').2.val)
   then
     let ret_calls? :=
-      (λ k =>
-        let (fst_call, i) :=
-          fst_calls ((snd_calls k).2.castGT (by simp_all))
-        fst_call.merge (snd_calls k).1
-        |>.map (·, i))
-      |> Vector.mOfFn
-    ret_calls?.map
-      λ v => ⟨λ g' => (snd_group g').castLT' (by simp_all)
-                      |> fst_group,
-              v.get⟩
+      λ a' =>
+        let fst_call :=
+          fst.calls <|
+          (snd.calls a').2.castGT (h.2 a')
+        if let some call := fst_call.1.merge (snd.calls a').1
+        then some (call, fst_call.2)
+        else none
+    if h' : ∀ a', Option.isSome (ret_calls? a')
+    then
+      some ⟨λ g' => (snd.group_by g').castLT' (h.1 g')
+                  |> fst.group_by,
+            λ a' => (ret_calls? a').get (h' a')
+            ⟩
+    else none
   else none
+
+-- def Aggregate.merge'
+--   (fst : Aggregate I G A) (snd : Aggregate (G + A) G' A') :
+--   Option (Aggregate I G' A') :=
+--   if h : (∀ g' : Fin G', (snd.group_by g').val < G)
+--      ∧ (∀ a' : Fin A', G ≤ (snd.calls a').2.val)
+--   then
+--     let ret_calls :=
+--       (λ k =>
+--         let (fst_call, i) :=
+--           fst.calls ((snd.calls k).2.castGT (by simp_all))
+--         fst_call.merge (snd.calls k).1
+--         |>.map (·, i))
+--       |> Vector.mOfFn
+--     ret_calls?.map
+--       λ v => ⟨λ g' => (snd_group g').castLT' (by simp_all)
+--                       |> fst_group,
+--               v.get⟩
+--   else none

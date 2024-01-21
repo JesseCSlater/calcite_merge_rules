@@ -1,4 +1,5 @@
 import CalciteMergeRules.Table
+import Mathlib
 
 theorem Table.classes_join
   (table : Table I) (group_by : Fin G → Fin I)
@@ -19,4 +20,14 @@ theorem Aggregate.merge_valid
   fst.merge snd = some merged ->
     t.apply_agg merged = (t.apply_agg fst |>.apply_agg snd)
     := by
-    sorry
+    unfold merge
+    intro merge
+    split at merge
+    case inr => simp_all only [not_and, not_forall, not_le]
+    case inl =>
+      simp_all only
+      split at merge
+      case inr => simp_all only [imp_false]
+      case inl =>
+        simp_all only [Option.some.injEq]
+        rename_i h h'
