@@ -31,3 +31,6 @@ theorem Aggregate.merge_valid
       case inl =>
         simp_all only [Option.some.injEq]
         rename_i h h'
+        unfold Table.apply_agg
+        simp_all
+        sorry

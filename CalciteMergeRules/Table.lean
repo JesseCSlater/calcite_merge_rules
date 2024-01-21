@@ -147,22 +147,3 @@ def Aggregate.merge
             ⟩
     else none
   else none
-
--- def Aggregate.merge'
---   (fst : Aggregate I G A) (snd : Aggregate (G + A) G' A') :
---   Option (Aggregate I G' A') :=
---   if h : (∀ g' : Fin G', (snd.group_by g').val < G)
---      ∧ (∀ a' : Fin A', G ≤ (snd.calls a').2.val)
---   then
---     let ret_calls :=
---       (λ k =>
---         let (fst_call, i) :=
---           fst.calls ((snd.calls k).2.castGT (by simp_all))
---         fst_call.merge (snd.calls k).1
---         |>.map (·, i))
---       |> Vector.mOfFn
---     ret_calls?.map
---       λ v => ⟨λ g' => (snd_group g').castLT' (by simp_all)
---                       |> fst_group,
---               v.get⟩
---   else none
