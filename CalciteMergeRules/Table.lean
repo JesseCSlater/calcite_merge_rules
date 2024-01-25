@@ -89,9 +89,12 @@ def Table.apply_calls
   (table : Table I) (calls : Fin A → AggCall × Fin I)
   : Fin A → Option ℕ :=
   λ col =>
-    let (call, row) := calls col
-    let column := table.map (· row)
-    (call.call column)
+    let call := calls col
+    (call.1.call (table.map (· call.2)))
+
+-- def Table.reduce_classes
+--   (table : Table I) (group_by : Fin G → Fin I) (calls : Fin A → Fin I) :
+--   ()
 
 /- Apply an aggregate to a table, resulting in a table with
    a column for each group_by column and for each AggCall,
@@ -101,21 +104,17 @@ def Table.apply_calls
 def Table.apply_agg
   (table : Table I) (agg : Aggregate I G A)
   : Table (G + A) :=
-  let {calls, group_by} := agg
-  let groups := table.classes group_by
+  let groups := table.classes agg.group_by
   groups.map (λ t =>
-    Fin.append (t.get_groups group_by) (t.apply_calls calls))
+    Fin.append (t.get_groups agg.group_by) (t.apply_calls agg.calls))
 
 --Cast Fin m into Fin (n + m) in the natural way
 def Fin.castGT {n m : Nat} (i : Fin (n + m)) (h : n ≤ i.val)
- : Fin m := ⟨i.val - n,
-  by
-  apply (tsub_lt_iff_left h).mpr
-  simp⟩
+ : Fin m := ⟨i.val - n, by simp_all only [is_lt, tsub_lt_iff_left]⟩
 
 --Cast Fin n into Fin (n + m) in the natural way
 def Fin.castLT' {n m : Nat} (i : Fin (n + m)) (h : i.val < n)
- : Fin n := ⟨i.val, by simp_all⟩
+ : Fin n := ⟨i.val, by simp_all only [h]⟩
 
 /- The calcite aggregate merge rule. Merges to aggregates into
    a single one which produces the same result. Fails if the second
