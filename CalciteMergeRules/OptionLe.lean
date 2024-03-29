@@ -1,6 +1,5 @@
 import Mathlib.Logic.IsEmpty
 import Mathlib.Init.Data.Nat.Lemmas
-
 /- I am just using this to be able to extract an element from
    a multiset, by sorting it into a list. However, this is
    quite pointless since I know all values will be the same anyway,

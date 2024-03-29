@@ -3,7 +3,6 @@ import CalciteMergeRules.OptionLe
 import Mathlib.Data.Fintype.Basic
 import Mathlib.Data.Multiset.Powerset
 import Mathlib.Data.Multiset.Sort
-import Mathlib.Data.Vector.Basic
 
 /- I choose a multiset representation because Calcite
    makes the order of rows in a table inaccessible from within

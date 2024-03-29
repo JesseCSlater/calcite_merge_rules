@@ -1,5 +1,5 @@
 import Mathlib.Data.Multiset.Fold
-
+import Std
 /- I am only representing the simplest of the Calcite aggcalls
    which are possible to merge.
 -/
@@ -11,26 +11,26 @@ inductive AggCall
   | MAX
 
 -- Helper instances to allow functions to be used on mutisets
-instance mergeComm (op : α → α → α) [comm : IsCommutative α op]
-  : IsCommutative (Option α) (Option.merge op) where
+instance mergeComm (op : α → α → α) [comm : Std.Commutative op]
+  : Std.Commutative (Option.merge op) where
   comm := by
     intro a b
     unfold Option.merge
     cases a <;> cases b <;> simp
     apply comm.comm
 
-instance mergeAssoc (op : α → α → α) [assoc : IsAssociative α op]
-  : IsAssociative (Option α) (Option.merge op) where
+instance mergeAssoc (op : α → α → α) [assoc : Std.Associative op]
+  : Std.Associative (Option.merge op) where
   assoc := by
     intro a b c
     unfold Option.merge
     cases a <;> cases b <;> cases c <;> simp
     apply assoc.assoc
 
-instance addComm : IsCommutative (ℕ) (Nat.add) where
+instance addComm : Std.Commutative (Nat.add) where
   comm := Nat.add_comm
 
-instance addAssoc : IsAssociative (ℕ) (Nat.add) where
+instance addAssoc : Std.Associative (Nat.add) where
   assoc := Nat.add_assoc
 
 /- The semantics of each of the AggCalls. Each one returns

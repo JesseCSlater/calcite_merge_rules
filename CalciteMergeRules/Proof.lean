@@ -1,5 +1,5 @@
 import CalciteMergeRules.Table
-import Mathlib
+import Mathlib.Data.Multiset.Fintype
 
 @[reducible, simp]
 theorem Table.classes_join
@@ -55,3 +55,5 @@ theorem Aggregate.merge_valid
         simp_all
         aesop
         sorry
+
+#minimize_imports
