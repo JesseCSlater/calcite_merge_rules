@@ -1,17 +1,23 @@
 import CalciteMergeRules.Table
 import Mathlib.Data.Multiset.Fintype
 
-@[reducible, simp]
+/- Proof will be easy once classes is rewritten on lists
+-/
 theorem Table.classes_join
   (table : Table I) (group_by : Fin G → Fin I)
   : (table.classes group_by).join = table
   := by sorry
 
-theorem Table.apply_calls_valid
-  (table : Table I) (group_by : Fin G → Fin I)
-  : table.classes group_by
+/- Proof because each one must differ in group_by column
+-/
+theorem Table.apply_agg_nodup
+  (table : Table I) (agg : Aggregate I G A)
+  : (table.apply_agg agg).Nodup
   := by sorry
 
+/- Proof by cases on each of the possible merges
+   Should be relatively straight forward
+-/
 theorem AggCall.merge_valid
   (col : Multiset (Multiset (Option ℕ)))
   (fst snd merged: AggCall) :
@@ -25,7 +31,7 @@ theorem AggCall.merge_valid
 
   Proof sketch:
   First, use the assumption that the merge was successful to get
-  that the conditions for a merge are met. Those are
+  that the conditions for a merge aremet. Those are
   1. All of the group_by columns of the second aggregate
      are group_by columns of the first aggregate's output table.
   2. All the AggCalls of the second aggregate are columns
@@ -41,19 +47,39 @@ theorem Aggregate.merge_valid
     t.apply_agg merged = (t.apply_agg fst |>.apply_agg snd)
     := by
     unfold merge
-    intro merge
-    split at merge
+    intro merged_succesfully
+    split at merged_succesfully
     case inr => simp_all only [not_and, not_forall, not_le]
     case inl =>
       simp_all only
-      split at merge
+      split at merged_succesfully
       case inr => simp_all only [imp_false]
-      case inl =>
+      case inl => 
         simp_all only [Option.some.injEq]
         rename_i h h'
-        unfold Table.apply_agg Table.get_groups Table.apply_calls
-        simp_all
-        aesop
+        rw [Multiset.Nodup.ext]
+        intro row
+        unfold Table.apply_agg
+        simp_all only [Multiset.mem_map]
+        apply Iff.intro
+        case mp =>
+          intro row_comes_from_group
+          apply Exists.elim row_comes_from_group
+          intro table x
+          let ⟨table_is_group, table_forms_row⟩ := x
+          apply Exists.intro (table.apply_agg fst)
+          simp_all
+          apply And.intro
+          case left =>
+            unfold Table.classes
+            intro
+
+
+        case mpr =>
+          sorry
+
+
+
         sorry
 
 #minimize_imports

@@ -46,20 +46,24 @@ structure Aggregate (I G A : ℕ) where
    to prove Table.classes_join (in Proof.lean) than it would be
    with a list definiton.
    The best solution would be to write the list solution and then
-   proove it is invariant under permutation so it could be raised
+   prove it is invariant under permutation so it could be raised
    to multiset, since this would maintain effeciency, but I suspect
    that would be a lot more work.
 -/
 def Table.classes
   (m : Table I) (group_by : Fin G → Fin I)
   : Multiset (Table I):=
+  -- Start with the set of all subtables of m
   let x := m.powerset
-  |>.filter (λ p =>
+  -- Remove all subtables which contain a pair of rows 
+  -- which have a mismatch in one of the group by columns.
+  |>.filter (λ p => 
               ∀ row₁ ∈ p,
               ∀ row₂ ∈ p,
               ∀ col : Fin G,
                 row₁ (group_by col) =
                   row₂ (group_by col))
+  -- Remove all subtables which are a subset of another table
   x.filter (λ p => ∀ q ∈ x, p ≤ q → p = q)
 
 /- Get the unique element of each row which is used for
@@ -115,7 +119,7 @@ def Fin.castGT {n m : Nat} (i : Fin (n + m)) (h : n ≤ i.val)
 def Fin.castLT' {n m : Nat} (i : Fin (n + m)) (h : i.val < n)
  : Fin n := ⟨i.val, by simp_all only [h]⟩
 
-/- The calcite aggregate merge rule. Merges to aggregates into
+/- The calcite aggregate merge rule. Merges two aggregates into
    a single one which produces the same result. Fails if the second
    aggregate does not have a group set which is a subset of the first's
    groups, and a set of agg_calls columns which is a subset of the
@@ -130,8 +134,8 @@ def Aggregate.merge
      ∧ (∀ a' : Fin A', G ≤ (snd.calls a').2.val)
   then
     let ret_calls? :=
-      λ a' =>
-        let fst_call :=
+      λ a' : Fin A' =>
+        let fst_call : AggCall × Fin I :=
           fst.calls <|
           (snd.calls a').2.castGT (h.2 a')
         if let some call := fst_call.1.merge (snd.calls a').1
