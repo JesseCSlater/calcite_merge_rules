@@ -76,11 +76,11 @@ def Table.classes
    and then writing a function on lists and raising it to
    multisets.
 -/
-def Table.get_groups
-  (table : Table I) (group_by : Fin G → Fin I)
+def Table.get_common_columns
+  (group : Table I) (group_by : Fin G → Fin I)
   : Fin G → Option ℕ :=
   λ col =>
-    table.map (λ row => row (group_by col))
+    group.map (λ row => row (group_by col))
     |>.sort Option.Le
     |>.head?
     |>.join
@@ -104,12 +104,13 @@ def Table.apply_calls
    and as many rows as there are equivalence classes on
    group_by
 -/
+@[simp, reducible]
 def Table.apply_agg
   (table : Table I) (agg : Aggregate I G A)
   : Table (G + A) :=
   let groups := table.classes agg.group_by
   groups.map (λ t =>
-    Fin.append (t.get_groups agg.group_by) (t.apply_calls agg.calls))
+    Fin.append (t.get_common_columns agg.group_by) (t.apply_calls agg.calls))
 
 --Cast Fin m into Fin (n + m) in the natural way
 def Fin.castGT {n m : Nat} (i : Fin (n + m)) (h : n ≤ i.val)
@@ -127,6 +128,7 @@ def Fin.castLT' {n m : Nat} (i : Fin (n + m)) (h : i.val < n)
    Also fails if any of the agg_calls are not supported, as seen in
    AggCalls.lean
 -/
+@[reducible]
 def Aggregate.merge
   (fst : Aggregate I G A) (snd : Aggregate (G + A) G' A') :
   Option (Aggregate I G' A') :=
