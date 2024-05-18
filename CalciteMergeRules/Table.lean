@@ -79,8 +79,8 @@ def Table.classes
 def Table.get_common_columns
   (group : Table I) (group_by : Fin G → Fin I)
   : Fin G → Option ℕ :=
-  λ col =>
-    group.map (λ row => row (group_by col))
+  λ g =>
+    group.map (λ row => row (group_by g))
     |>.sort Option.Le
     |>.head?
     |>.join
@@ -91,8 +91,8 @@ def Table.get_common_columns
 def Table.apply_calls
   (table : Table I) (calls : Fin A → AggCall × Fin I)
   : Fin A → Option ℕ :=
-  λ col =>
-    let call := calls col
+  λ a =>
+    let call := calls a
     (call.1.call (table.map (· call.2)))
 
 -- def Table.reduce_classes
