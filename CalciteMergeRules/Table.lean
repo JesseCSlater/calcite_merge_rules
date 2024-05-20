@@ -88,6 +88,7 @@ def Table.get_common_columns
 /- Apply the list of aggregate calls to a table, resulting
    in a row of the output of each of the calls.
 -/
+@[simp, reducible]
 def Table.apply_calls
   (table : Table I) (calls : Fin A → AggCall × Fin I)
   : Fin A → Option ℕ :=
