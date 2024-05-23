@@ -38,6 +38,31 @@ structure Aggregate (I G A : ℕ) where
   group_by : Fin G → Fin I
   calls : Fin A → AggCall × Fin I
 
+/-
+λ g : Fin 2
+ | 0 => 1
+ | 1 => 1
+
+Input table
+1 3 4
+4 5 7
+1 3 3
+
+Aggregate (I = 3) (G = 2) (A = 1)
+group_by := [0, 1]d
+calls := [(2, add)]
+
+1 3 4
+1 3 3 -> 1 3 7
+
+4 5 7 -> 4 5 7
+
+Output table
+1 3 7
+4 5 7
+-/
+
+
 /- Seperate a table into a multiset based on the equivalence
    classes of the group_by columns.
    Here, my choice of using a multiset instead of a list forces
@@ -55,9 +80,9 @@ def Table.classes
   : Multiset (Table I):=
   -- Start with the set of all subtables of m
   let x := m.powerset
-  -- Remove all subtables which contain a pair of rows 
+  -- Remove all subtables which contain a pair of rows
   -- which have a mismatch in one of the group by columns.
-  |>.filter (λ p => 
+  |>.filter (λ p =>
               ∀ row₁ ∈ p,
               ∀ row₂ ∈ p,
               ∀ col : Fin G,
