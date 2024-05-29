@@ -1,5 +1,5 @@
 import Mathlib.Data.Multiset.Fold
-import Std
+
 /- I am only representing the simplest of the Calcite aggcalls
    which are possible to merge.
 -/

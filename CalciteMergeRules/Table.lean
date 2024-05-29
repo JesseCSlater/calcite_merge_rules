@@ -1,8 +1,12 @@
 import CalciteMergeRules.AggCalls
 import CalciteMergeRules.OptionLe
+import Mathlib
+/-
 import Mathlib.Data.Fintype.Basic
 import Mathlib.Data.Multiset.Powerset
 import Mathlib.Data.Multiset.Sort
+import Mathlib.Data.Multiset.Fintype
+-/
 
 /- I choose a multiset representation because Calcite
    makes the order of rows in a table inaccessible from within
@@ -16,6 +20,10 @@ import Mathlib.Data.Multiset.Sort
    required to handle most of the mergeable aggregate functions
    which Calcite supports.
 -/
+
+abbrev Row (numCols : ℕ) :=
+  (Fin numCols → Option ℕ)
+
 abbrev Table (numCols : ℕ) :=
   Multiset (Fin numCols → Option ℕ)
 
@@ -34,8 +42,57 @@ abbrev Table (numCols : ℕ) :=
    running the rollup multiple times with different group_by
    values.
 -/
+
+abbrev Group_By (I G : Nat) :=
+  Fin G → Fin I
+
+def Table.rel (T : Table I) (group_by : Group_By I G) :
+  T → T → Prop :=
+  λ r r' =>
+    ∀ g : Fin G, r.1 (group_by g) = r'.1 (group_by g)
+
+instance Table.instEquivGroupBy (group_by : Group_By I G) (T : Table I)
+  : Equivalence (T.rel group_by) where
+  refl := by sorry
+  symm := by sorry
+  trans := by sorry
+
+instance t (T : Table I) (group_by : Group_By I G) : DecidableRel (T.rel group_by) :=
+  inferInstanceAs <|
+    @DecidableRel ((x : Row I) × Fin (Multiset.count x T))
+    (λ r r' =>
+      ∀ g : Fin G, r.1 (group_by g) = r'.1 (group_by g))
+
+def Table.instSetoidGroupBy (T : Table I) (group_by : Group_By I G)
+  : Setoid T where
+  r := T.rel group_by
+  iseqv := T.instEquivGroupBy group_by
+
+instance (T : Table I) (group_by : Group_By I G) : DecidableRel (T.instSetoidGroupBy group_by).r := by
+  unfold Setoid.r Table.instSetoidGroupBy
+  infer_instance
+
+instance (T : Table I) : DecidableEq T :=
+  inferInstanceAs <| DecidableEq ((x : Row I) × Fin (Multiset.count x T))
+
+def T : Table 3 :=
+  Multiset.ofList [
+  λ | 0 => none
+    | 1 => some 0
+    | 2 => some 1,
+  λ | 0 => none
+    | 1 => some 2
+    | 2 => some 3,
+  λ | 0 => some 1
+    | 1 => some 0
+    | 2 => some 1,
+  ]
+
+def group_by : Group_By 3 1 :=
+  λ | 0 => 1
+
 structure Aggregate (I G A : ℕ) where
-  group_by : Fin G → Fin I
+  group_by : Group_By I G
   calls : Fin A → AggCall × Fin I
 
 /-
@@ -62,7 +119,6 @@ Output table
 4 5 7
 -/
 
-
 /- Seperate a table into a multiset based on the equivalence
    classes of the group_by columns.
    Here, my choice of using a multiset instead of a list forces
@@ -72,12 +128,11 @@ Output table
    with a list definiton.
    The best solution would be to write the list solution and then
    prove it is invariant under permutation so it could be raised
-   to multiset, since this would maintain effeciency, but I suspect
-   that would be a lot more work.
+   to multiset, since this would maintain effeciency, but
 -/
 def Table.classes
   (m : Table I) (group_by : Fin G → Fin I)
-  : Multiset (Table I):=
+  : Multiset (Table I) :=
   -- Start with the set of all subtables of m
   let x := m.powerset
   -- Remove all subtables which contain a pair of rows
@@ -90,6 +145,8 @@ def Table.classes
                   row₂ (group_by col))
   -- Remove all subtables which are a subset of another table
   x.filter (λ p => ∀ q ∈ x, p ≤ q → p = q)
+
+#eval T.classes group_by
 
 /- Get the unique element of each row which is used for
    grouping of the table which is already the result of
