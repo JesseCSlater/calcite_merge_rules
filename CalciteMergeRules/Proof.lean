@@ -301,7 +301,6 @@ def Table.group_from_group
       rw [← Function.comp.assoc, ← Function.comp.assoc, row_matches_row', r'_matches_row]
     rfl
 
-#check Table.group_from_group
 theorem Aggregate.merged_eq_snd
   {fst : Aggregate I G A} {snd : Aggregate (G + A) G' A'}
   (merged_eq : fst.merge snd = some merged) 
@@ -403,34 +402,93 @@ theorem Aggregate.merge_valid_group
           rw [AggCall.merge_valid col merge_valid]
 
 theorem Aggregate.merge_valid
-  {fst : Aggregate I G A} {snd : Aggregate (G + A) G' A'} 
-  (table : Table I)
-  (merged_succesfully : fst.merge snd = some merged)
-  : table.apply_agg merged = (table.apply_agg fst |>.apply_agg snd)
+  {fst : Aggregate I G A} {snd : Aggregate (G + A) G' A'} {merged : Aggregate I G' A'} 
+  (merged_succesfully : fst.merge snd = some merged) (t : Table I)
+  : t.apply_agg merged = (t.apply_agg fst).apply_agg snd
   := by
-    let restrictor := Aggregate.fst_stricter_than_merge merged_succesfully
+    -- Since Table.apply_agg returns a bag without duplicates, 
+    -- it suffices to show that for an arbitrary row r: 
+    -- r ∈ t.apply_agg merged ↔ r ∈ (t.apply_agg fst).apply_agg snd 
     rw [Multiset.Nodup.ext (by simp only [Table.apply_agg_nodup]) (by simp only [Table.apply_agg_nodup])]
-    intro row
+    intro r
     apply Iff.intro
-    case mp => 
-      intro row_from_group_apply_merged 
-      simp only [Table.apply_agg, Multiset.mem_map] at row_from_group_apply_merged
-      rcases row_from_group_apply_merged with ⟨group, group_is_group_table_merged, rfl⟩ 
-      simp only [Table.group_iff] at group_is_group_table_merged
-      have group_apply_fst_group_snd: (group.apply_agg fst).is_group_of (table.apply_agg fst) snd.group_by := by
-        rw [← Aggregate.merged_eq_snd merged_succesfully]
-        simp_all only [Table.group_apply_agg_group restrictor]
+
+    -- Direction 1: 
+    -- r ∈ t.apply_agg merged → r ∈ (t.apply_agg fst).apply_agg snd
+    case mp =>
+      -- Assume r ∈ t.apply_agg merged
+      intro r_from_t_apply_merged
+
+      -- Then there exists a group g of t under merged.group_by s.t.
+      -- r is the only element of g.apply_agg merged.
+      -- Thus, to show r ∈ (t.apply_agg fst).apply_agg snd, it suffices to show that
+      -- (g.apply_agg merged) ⊆ (t.apply_agg fst).apply_agg snd
+      simp only [Multiset.mem_map] at r_from_t_apply_merged
+      rcases r_from_t_apply_merged with ⟨g, g_group_t_merged, rfl⟩
+      simp only [Table.group_iff] at g_group_t_merged
+
+      -- To show that (g.apply_agg merged) ⊆ (t.apply_agg fst).apply_agg snd, it suffices to show
+      -- that there exists some group α of (t.apply_agg fst) under snd.group_by
+      -- s.t. (g.apply_agg merged) = (α.apply_agg snd).
       simp only [Multiset.mem_map, Table.group_iff]
-      use group.apply_agg fst
-      exact ⟨group_apply_fst_group_snd, merge_valid_group merged_succesfully group_is_group_table_merged⟩
+
+      -- I claim (g.apply_agg fst) is such an α.
+      -- It remains to be shown that
+      -- (g.apply_agg fst) is a group of (t.apply_agg fst) under snd.group_by
+      -- and (g.apply_agg fst).apply_agg snd = g.apply_agg merged
+      use g.apply_agg fst
+
+      -- Since merged is the result of (fst.merge snd) and 
+      -- g is a group of t under merged.group_by
+      -- Table.group_apply_agg_group gives that
+      -- (g.apply_agg fst) is a group of (t.apply_agg fst) under snd.group_by
+      have g_apply_fst_group_t_snd: (g.apply_agg fst).is_group_of (t.apply_agg fst) snd.group_by := by
+        rw [← Aggregate.merged_eq_snd merged_succesfully]
+        simp_all only [Table.group_apply_agg_group (fst_stricter_than_merge merged_succesfully)]
+      refine ⟨g_apply_fst_group_t_snd, ?_⟩
+      
+      -- Since merged is the result of (fst.merge snd) and 
+      -- g is a group of t under merged.group_by
+      -- Aggregate.merge_valid_group gives that 
+      -- (g.apply_agg fst).apply_agg snd = g.apply_agg merged
+      exact Aggregate.merge_valid_group merged_succesfully g_group_t_merged
+
+    --Direction 2:
+    -- r ∈ (t.apply_agg fst).apply_agg snd → r ∈ t.apply_agg merged
     case mpr =>
-      intro z
-      have row_from_fst_snd := z
-      simp only [Multiset.mem_map, Table.group_iff] at z
-      rcases z with ⟨group', group'_apply_fst_group_snd, rfl⟩
-      rw [← merged_eq_snd merged_succesfully] at group'_apply_fst_group_snd
-      rcases Table.group_from_group group'_apply_fst_group_snd with ⟨group, group_group_by_merge, rfl⟩
-      simp [Multiset.mem_map, Table.group_iff]
-      use group
-      exact ⟨group_group_by_merge, Eq.symm (merge_valid_group merged_succesfully group_group_by_merge)⟩
+      --assume r ∈ (t.apply_agg fst).apply_agg snd
+      intro r_from_t_apply_fst_apply_snd
+
+      -- Then there exists a group g' of (t.apply_agg fst) under snd.group_by s.t.
+      -- r is the only element of (g'.apply_agg snd).
+      -- Thus, to show r ∈ (t.apply_agg merged), it suffices to show that
+      -- (g'.apply_agg snd) ⊆ (t.apply_agg merged)
+      simp only [Multiset.mem_map, Table.group_iff] at r_from_t_apply_fst_apply_snd
+      rcases r_from_t_apply_fst_apply_snd with ⟨g', g'_group_t_apply_fst_snd, rfl⟩
+      
+      -- Since merged is the result of (fst.merge snd) and 
+      -- g' is a group of (t.apply_agg fst) under snd.group_by
+      -- Table.group_from_group gives that 
+      -- there exists some group g of t under merged.group_by s.t. (g.apply_agg fst) = g'
+      -- Thus, to show (g'.apply_agg snd) ⊆ (t.apply_agg merged), it suffices to show
+      -- (g.apply_agg fst).apply_agg snd ⊆ (t.apply_agg merged)
+      rw [← merged_eq_snd merged_succesfully] at g'_group_t_apply_fst_snd
+      rcases Table.group_from_group g'_group_t_apply_fst_snd with ⟨g, g_is_group_t_merged, rfl⟩
+      
+      -- To show that (g.apply_agg fst).apply_agg snd ⊆ (t.apply_agg merged), it suffices to show
+      -- that there exists some group a of t under merged.group_by s.t.
+      -- (g.apply_agg fst).apply_agg snd = a.apply_agg merged
+      simp only [Multiset.mem_map, Table.group_iff]
+
+      -- I claim g is such an α.
+      -- I have already shown that g is a group of t under merged, so it remains to be shown that
+      -- (g.apply_agg fst).apply_agg snd = g.apply_agg merged
+      use g
+      refine ⟨g_is_group_t_merged, ?_⟩
+      
+      -- Since merged is the result of (fst.merge snd) and 
+      -- g is a group of t under merged.group_by
+      -- Aggregate.merge_valid_group gives that 
+      -- (g.apply_agg fst).apply_agg snd = g.apply_agg merged
+      exact Eq.symm (merge_valid_group merged_succesfully g_is_group_t_merged)
 
