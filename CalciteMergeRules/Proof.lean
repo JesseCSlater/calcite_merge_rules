@@ -4,7 +4,7 @@ import Mathlib
 theorem Table.classes_join
   (table : Table I) (group_by : Fin G → Fin I)
   : (table.classes group_by).join = table
-  := by sorry
+  :=by sorry
 
 def Table.is_group_of
   (group table : Table I) (group_by : Fin G → Fin I) :=
@@ -110,13 +110,12 @@ theorem Table.common_columns_subgroup
   (is_subgroup : group'.is_group_of group strict)
     : group.get_common_columns loose
       = group'.get_common_columns strict ∘ restrictor.restrictor
-  := by sorry
-
-theorem Table.apply_agg_to_group'
-  {table group: Table I} {agg : Aggregate I G A}
-  (is_group : group.is_group_of table agg.group_by)
-  : (group.apply_agg agg) ⊆ (table.apply_agg agg)
-  := by sorry
+  := by 
+  rcases group_not_empty is_subgroup with ⟨r', r'_in_group'⟩
+  rw [← row_in_group_only_if is_subgroup r'_in_group', Function.comp.assoc, restrictor.is_stricter]
+  have r'_in_group : r' ∈ group := by
+    exact Multiset.mem_of_subset is_subgroup.left r'_in_group'
+  rw [row_in_group_only_if is_group r'_in_group]
 
 theorem Table.group_of_group
   {table group group' : Table I}
@@ -125,21 +124,27 @@ theorem Table.group_of_group
   (is_group : group.is_group_of table loose)
   (is_group' : group'.is_group_of group strict)
   : group'.is_group_of table strict
-  := by sorry
-
-theorem Table.apply_agg_to_group_subset
-  {agg : Aggregate I G A} {loose : Fin G' → Fin I} 
-  {table group : Table I} (restrictor : Grouping_Restrictor agg.group_by loose)
-  (is_group : group.is_group_of table loose)
-  : group.apply_agg agg ⊆ table.apply_agg agg
   := by 
-  refine Multiset.subset_iff.mpr ?_
-  intro row' row'_in_group_apply_agg
-  rcases Table.row_from_group row'_in_group_apply_agg with ⟨group', group'_is_group, rfl⟩
-  simp only [Table.apply_agg, Multiset.mem_map, group_iff]
-  use group'
-  simp only [and_true]
-  exact group_of_group restrictor is_group group'_is_group
+  constructor
+  case left =>
+    exact Multiset.Subset.trans is_group'.left is_group.left
+  case right =>
+    rcases group_not_empty is_group' with ⟨r, r_in_group'⟩
+    use r
+    refine ⟨r_in_group', ?_⟩
+    intro r' r'_in_table
+    rw [Table.row_in_group_only_if is_group' r_in_group']
+    constructor
+    case mp =>
+      intro r'_in_group'
+      rw [Table.row_in_group_only_if is_group' r'_in_group']
+    case mpr =>
+      intro columns_match
+      have r'_in_group : r' ∈ group := by 
+        rw [row_in_group_iff is_group r'_in_table]
+        nth_rw 1 [← restrictor.is_stricter]
+        rw [← Function.comp.assoc, ← columns_match, ← common_columns_subgroup restrictor is_group is_group']
+      rw [Table.row_in_group_iff is_group' r'_in_group, columns_match]
 
 theorem Table.stricter_partitions_group
   {table group group' : Table I}
@@ -152,7 +157,7 @@ theorem Table.stricter_partitions_group
   := by
   constructor
   case left =>
-    refine Multiset.subset_iff.mpr ?_
+    apply Multiset.subset_iff.mpr 
     intro row' row'_in_group'
     have row'_in_table : row' ∈ table := by 
       exact row_in_table_if_row_in_group is_group' row'_in_group'
@@ -178,6 +183,20 @@ theorem Table.stricter_partitions_group
           exact row_in_table_if_row_in_group is_group row_in_group
         apply (row_in_group_iff is_group' row_in_table).mpr
         simp_all only
+
+theorem Table.apply_agg_to_group_subset
+  {agg : Aggregate I G A} {loose : Fin G' → Fin I} 
+  {table group : Table I} (restrictor : Grouping_Restrictor agg.group_by loose)
+  (is_group : group.is_group_of table loose)
+  : group.apply_agg agg ⊆ table.apply_agg agg
+  := by 
+  apply Multiset.subset_iff.mpr
+  intro row' row'_in_group_apply_agg
+  rcases Table.row_from_group row'_in_group_apply_agg with ⟨group', group'_is_group, rfl⟩
+  simp only [Table.apply_agg, Multiset.mem_map, group_iff]
+  use group'
+  simp only [and_true]
+  exact group_of_group restrictor is_group group'_is_group
 
 def Table.group_apply_agg_group
   {agg : Aggregate I G A} {loose : Fin G' → Fin I} 
@@ -302,20 +321,40 @@ def Table.group_from_group
     rfl
 
 theorem Aggregate.merged_eq_snd
-  {fst : Aggregate I G A} {snd : Aggregate (G + A) G' A'}
+  {fst: Aggregate I G A} {snd : Aggregate (G + A) G' A'}
   (merged_eq : fst.merge snd = some merged) 
   : Fin.castAdd A ∘ (fst_stricter_than_merge merged_eq).restrictor = snd.group_by
   := by rfl
 
-/- Proof by cases on each of the possible merges
-   Should be relatively straight forward
--/
 theorem AggCall.merge_valid
   (col : Multiset (Multiset (Option ℕ)))
-  {fst snd merged : AggCall} (merge_valid : fst.merge snd = some merged)
-  : merged.call col.join = (col.map fst.call |> snd.call)
+  {fst_call snd_call merged_call : AggCall} 
+  (merge_valid : fst_call.merge snd_call = some merged_call)
+  : merged_call.call col.join = (col.map fst_call.call |> snd_call.call)
     := by
-    sorry
+    unfold AggCall.merge at merge_valid
+    cases fst_call 
+    <;> cases snd_call 
+    <;> simp_all only [Option.some_inj]
+    <;> unfold AggCall.call
+    <;> simp only [← merge_valid]
+    case COUNT.SUM0 =>
+      rw [Function.comp_apply, Multiset.card_join, Multiset.sum_eq_foldl, ← Multiset.fold_eq_foldl]
+      induction col using Multiset.induction_on
+      case empty => simp [Multiset.map_zero, Multiset.foldl_zero]
+      case cons g col col_eq =>
+        rw [Multiset.map_cons, Multiset.map_cons, Multiset.fold_cons_left, Multiset.fold_cons_left, ← col_eq]
+        rfl
+    all_goals {
+      rw [← Multiset.fold_bind, Multiset.map_const', Multiset.bind, Multiset.map_id']
+      apply congrFun
+      apply congr (by rfl)
+      induction (Multiset.card col)
+      rfl
+      rename_i n h
+      rw [Multiset.replicate_succ, Multiset.fold_cons_right, ← h]
+      rfl
+    }
 
 theorem Fin.lt_help
   {i : Fin (n + m)} (h: i < n)
@@ -329,77 +368,96 @@ theorem Fin.gt_help
     unfold Fin.castGT
     simp_all only [natAdd_mk, ge_iff_le, add_tsub_cancel_of_le, Fin.eta]
 
+--TODO get Max's input on this one. It seems suspicious
+def Aggregate.merge_succesfull_column 
+  {fst : Aggregate I G A} {snd : Aggregate (G + A) G' A'}
+  (merged_succesfully : fst.merge snd = some merged) (a' : Fin A')
+  : Σ' (h :G ≤ (snd.calls a').2),
+    ∃ merged_call : AggCall,
+      (fst.calls (Fin.castGT (snd.calls a').2 h)).1.merge (snd.calls a').1 = some merged_call
+  where 
+  fst := by
+    unfold Aggregate.merge at merged_succesfully
+    split at merged_succesfully
+    case inr => simp_all only [not_and, not_forall, not_le]
+    case inl h => exact h.right a' 
+  snd := by 
+    unfold Aggregate.merge at merged_succesfully
+    split at merged_succesfully
+    case inr => simp_all only [not_and, not_forall, not_le]
+    case inl h =>
+      simp_all only
+      split at merged_succesfully
+      case inr => simp_all only [imp_false]
+      case inl all_calls_merged =>
+        simp_all only [Option.some.injEq]
+        have call_merged := all_calls_merged a'
+        split at call_merged
+        case h_2 => simp_all only [imp_false, Option.isSome_none, Bool.false_eq_true]
+        case h_1 call? call call_eq =>
+          use call 
+  
+
 theorem Aggregate.merge_valid_group
   {fst : Aggregate I G A} {snd : Aggregate (G + A) G' A'}
   (merged_succesfully : fst.merge snd = some merged)
   {group table : Table I}
   (group_is_group_table_merged : group.is_group_of table merged.group_by)
   : Fin.append ((group.apply_agg fst).get_common_columns snd.group_by) ((group.apply_agg fst).apply_calls snd.calls) = Fin.append (group.get_common_columns merged.group_by) (group.apply_calls merged.calls) := by
-    let restrictor := Aggregate.fst_stricter_than_merge merged_succesfully
-    let ⟨restrictor_group_by, is_stricter⟩ := restrictor
-    have merged_eq : Aggregate.merge fst snd = some merged := by exact merged_succesfully
-    unfold Aggregate.merge at merged_eq
-    split at merged_eq
-    case inr => simp_all only [not_and, not_forall, not_le]
-    case inl =>
-      simp_all only
-      split at merged_eq
-      case inr => simp_all only [imp_false]
-      case inl =>
-        simp_all only [Option.some.injEq]
-        rename_i x all_calls_merged
-        let ⟨groups_lt_G, calls_ge_G⟩ := x
-        clear x
-        apply funext
-        intro col
-        induction col using Fin.addCases
-        case h.left g' =>
-          rw [Fin.append_left, Fin.append_left, Table.common_columns_agg restrictor group_is_group_table_merged, Aggregate.merged_eq_snd]
-        case h.right a' =>
-          rw [Fin.append_right, Fin.append_right]
-          let group_fst_classes := group.classes fst.group_by
-          let col :=
-            group_fst_classes.map
-              (·.map (· (fst.calls (Fin.castGT (snd.calls a').2 (calls_ge_G a'))).2))
-          let col_fst_snd := col.map (fst.calls (Fin.castGT (snd.calls a').2 (calls_ge_G a'))).1.call |> (snd.calls a').1.call
-          have x : col_fst_snd = Table.apply_calls (Table.apply_agg group fst) snd.calls a' := by
-            simp only [Table.apply_calls, Table.apply_agg, Multiset.map_map, Function.comp_apply]
-            rw [Fin.gt_help (calls_ge_G a')]
-            aesop_subst [merged_eq]
-            simp_all only [Table.apply_agg, Multiset.mem_map, Table.group_iff, Multiset.map_map, Function.comp_apply, Fin.append_right, Table.apply_calls, col_fst_snd, col, group_fst_classes]
-          rw [← x]
-          clear x
-          let col_merge := (merged.calls a').1.call col.join
-          have x : col_merge = Table.apply_calls group merged.calls a' := by
-            simp only [Table.group_iff, Table.apply_agg, Multiset.mem_map, Table.apply_calls, col_merge]
-            have y : group.map (fun x => x (merged.calls a').2) = col.join := by
-              simp only [col]
-              rw [← merged_eq]
-              have z := all_calls_merged a'
-              split at z
-              case h_2 =>
-                simp_all only [Table.group_iff, Table.apply_agg, Multiset.mem_map, imp_false, Option.isSome_none]
-              case h_1 =>
-                rename_i call_o call merge_eq_some
+    apply funext
+    intro col
+    induction col using Fin.addCases
+    case h.left g' =>
+      rw [Fin.append_left, Fin.append_left]
+      rw [Table.common_columns_agg (fst_stricter_than_merge merged_succesfully) group_is_group_table_merged]
+      rfl
+    case h.right a' =>
+      rw [Fin.append_right, Fin.append_right]
+      unfold Aggregate.merge at merged_succesfully
+      split at merged_succesfully
+      case inr => simp_all only [not_and, not_forall, not_le]
+      case inl h =>
+        simp_all only
+        split at merged_succesfully
+        case inr => simp_all only [imp_false]
+        case inl all_calls_merged =>
+          simp_all only [Option.some.injEq]
+          rcases h with ⟨group_lt_G, calls_ge_G⟩
+          have call_merged := all_calls_merged a'
+          split at call_merged
+          case h_2 => simp_all only [imp_false, Option.isSome_none, Bool.false_eq_true]
+          case h_1 call? call' merge_eq_some' =>
+            let group_fst_classes := group.classes fst.group_by
+            let col :=
+              group_fst_classes.map
+                (·.map (· (fst.calls ((snd.calls a').2.castGT (calls_ge_G a'))).2))
+            let col_fst_snd := col.map (fst.calls (Fin.castGT (snd.calls a').2 (calls_ge_G a'))).1.call |> (snd.calls a').1.call
+            have x : col_fst_snd = Table.apply_calls (Table.apply_agg group fst) snd.calls a' := by
+              simp only [Table.apply_calls, Table.apply_agg, Multiset.map_map, Function.comp_apply]
+              rw [Fin.gt_help (calls_ge_G a')]
+              aesop_subst [merged_succesfully] --here
+              simp_all only [Table.apply_agg, Multiset.mem_map, Table.group_iff, Multiset.map_map, Function.comp_apply, Fin.append_right, Table.apply_calls, col_fst_snd, col, group_fst_classes]
+            rw [← x]
+            clear x
+            let col_merge := (merged.calls a').1.call col.join
+            have x : col_merge = Table.apply_calls group merged.calls a' := by
+              simp only [Table.group_iff, Table.apply_agg, Multiset.mem_map, Table.apply_calls, col_merge]
+              have y : group.map (fun x => x (merged.calls a').2) = col.join := by
+                simp only [col]
+                rw [← merged_succesfully] --here
                 simp_all only [Table.group_iff, Table.apply_agg, Multiset.mem_map, Option.isSome_some, Option.get_some]
                 rw [← Multiset.map_join, Table.classes_join]
-            simp_all only [Table.group_iff, Table.apply_agg, Multiset.mem_map]
-          rw [← x]
-          clear x
-          simp only [col_merge, col_fst_snd]
-          have merge_valid :
-            (fst.calls (Fin.castGT (snd.calls a').2 (calls_ge_G a'))).1.merge (snd.calls a').1
-            = some (merged.calls a').1 := by
-              have z := all_calls_merged a'
-              split at z
-              case h_2 =>
-                simp_all only [Table.group_iff, Table.apply_agg, Multiset.mem_map, imp_false, Option.isSome_none]
-              case h_1 =>
-                rename_i call_o call merge_eq_some
-                simp_all only [Table.group_iff, Table.apply_agg, Multiset.mem_map, Option.isSome_some, Option.get_some]
-                aesop_subst [merged_eq]
-                simp_all only [Option.get_some]
-          rw [AggCall.merge_valid col merge_valid]
+              simp_all only [Table.group_iff, Table.apply_agg, Multiset.mem_map]
+            rw [← x]
+            clear x
+            simp only [col_merge, col_fst_snd]
+            have merge_valid :
+              (fst.calls (Fin.castGT (snd.calls a').2 (calls_ge_G a'))).1.merge (snd.calls a').1
+              = some (merged.calls a').1 := by
+                  simp_all only [Table.group_iff, Table.apply_agg, Multiset.mem_map, Option.isSome_some, Option.get_some]
+                  aesop_subst [merged_succesfully] --here
+                  simp_all only [Option.get_some]
+            rw [AggCall.merge_valid col merge_valid]
 
 theorem Aggregate.merge_valid
   {fst : Aggregate I G A} {snd : Aggregate (G + A) G' A'} {merged : Aggregate I G' A'} 

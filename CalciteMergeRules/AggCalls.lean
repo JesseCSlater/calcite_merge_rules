@@ -37,7 +37,7 @@ instance addAssoc : Std.Associative (Nat.add) where
    a single Option ℕ.
 -/
 def AggCall.call : AggCall → Multiset (Option ℕ) → Option ℕ
-  | COUNT => some ∘ Multiset.sizeOf
+  | COUNT => some ∘ Multiset.card
   | SUM => Multiset.fold (Option.merge Nat.add) none
   | SUM0 => Multiset.fold (Option.merge Nat.add) (some 0)
   | MIN => Multiset.fold (Option.merge min) none
@@ -55,7 +55,7 @@ def AggCall.call : AggCall → Multiset (Option ℕ) → Option ℕ
    and merge rules.)
 -/
 def AggCall.merge : AggCall → AggCall → Option AggCall
-  | SUM0, COUNT => COUNT
+  | COUNT, SUM0 => COUNT
   | SUM, SUM => SUM
   | SUM0, SUM0 => SUM0
   | MIN, MIN => MIN
