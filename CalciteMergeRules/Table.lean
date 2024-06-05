@@ -21,9 +21,6 @@ import Mathlib.Data.Multiset.Fintype
    which Calcite supports.
 -/
 
-abbrev Row (numCols : ℕ) :=
-  (Fin numCols → Option ℕ)
-
 abbrev Table (numCols : ℕ) :=
   Multiset (Fin numCols → Option ℕ)
 
@@ -43,81 +40,9 @@ abbrev Table (numCols : ℕ) :=
    values.
 -/
 
-abbrev Group_By (I G : Nat) :=
-  Fin G → Fin I
-
-def Table.rel (T : Table I) (group_by : Group_By I G) :
-  T → T → Prop :=
-  λ r r' =>
-    ∀ g : Fin G, r.1 (group_by g) = r'.1 (group_by g)
-
-instance Table.instEquivGroupBy (group_by : Group_By I G) (T : Table I)
-  : Equivalence (T.rel group_by) where
-  refl := by sorry
-  symm := by sorry
-  trans := by sorry
-
-instance t (T : Table I) (group_by : Group_By I G) : DecidableRel (T.rel group_by) :=
-  inferInstanceAs <|
-    @DecidableRel ((x : Row I) × Fin (Multiset.count x T))
-    (λ r r' =>
-      ∀ g : Fin G, r.1 (group_by g) = r'.1 (group_by g))
-
-def Table.instSetoidGroupBy (T : Table I) (group_by : Group_By I G)
-  : Setoid T where
-  r := T.rel group_by
-  iseqv := T.instEquivGroupBy group_by
-
-instance (T : Table I) (group_by : Group_By I G) : DecidableRel (T.instSetoidGroupBy group_by).r := by
-  unfold Setoid.r Table.instSetoidGroupBy
-  infer_instance
-
-instance (T : Table I) : DecidableEq T :=
-  inferInstanceAs <| DecidableEq ((x : Row I) × Fin (Multiset.count x T))
-
-def T : Table 3 :=
-  Multiset.ofList [
-  λ | 0 => none
-    | 1 => some 0
-    | 2 => some 1,
-  λ | 0 => none
-    | 1 => some 2
-    | 2 => some 3,
-  λ | 0 => some 1
-    | 1 => some 0
-    | 2 => some 1,
-  ]
-
-def group_by : Group_By 3 1 :=
-  λ | 0 => 1
-
 structure Aggregate (I G A : ℕ) where
-  group_by : Group_By I G
+  group_by : Fin G → Fin I
   calls : Fin A → AggCall × Fin I
-
-/-
-λ g : Fin 2
- | 0 => 1
- | 1 => 1
-
-Input table
-1 3 4
-4 5 7
-1 3 3
-
-Aggregate (I = 3) (G = 2) (A = 1)
-group_by := [0, 1]d
-calls := [(2, add)]
-
-1 3 4
-1 3 3 -> 1 3 7
-
-4 5 7 -> 4 5 7
-
-Output table
-1 3 7
-4 5 7
--/
 
 /- Seperate a table into a multiset based on the equivalence
    classes of the group_by columns.
@@ -146,7 +71,6 @@ def Table.classes
   -- Remove all subtables which are a subset of another table
   x.filter (λ p => ∀ q ∈ x, p ≤ q → p = q)
 
-#eval T.classes group_by
 
 /- Get the unique element of each row which is used for
    grouping of the table which is already the result of
@@ -178,10 +102,6 @@ def Table.apply_calls
     let call := calls a
     (call.1.call (table.map (· call.2)))
 
--- def Table.reduce_classes
---   (table : Table I) (group_by : Fin G → Fin I) (calls : Fin A → Fin I) :
---   ()
-
 /- Apply an aggregate to a table, resulting in a table with
    a column for each group_by column and for each AggCall,
    and as many rows as there are equivalence classes on
@@ -194,6 +114,7 @@ def Table.apply_agg
   let groups := table.classes agg.group_by
   groups.map (λ t =>
     Fin.append (t.get_common_columns agg.group_by) (t.apply_calls agg.calls))
+
 
 --Cast Fin m into Fin (n + m) in the natural way
 def Fin.castGT {n m : Nat} (i : Fin (n + m)) (h : n ≤ i.val)

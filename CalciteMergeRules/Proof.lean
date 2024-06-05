@@ -1,11 +1,11 @@
 import CalciteMergeRules.Table
 import Mathlib
 
-theorem Multiset.mem_of_count_eq_count_mem 
+theorem Multiset.mem_of_count_eq_count_mem
   {s t : Multiset α} {a : α} [DecidableEq α]
   (count_eq_count : s.count a = t.count a) (mem : a ∈ t)
-  : a ∈ s 
-  := by 
+  : a ∈ s
+  := by
   rw [← Multiset.count_pos, ← count_eq_count, Multiset.count_pos] at mem
   exact mem
 
@@ -17,17 +17,7 @@ theorem Table.classes_join
 theorem Table.classes_nodup
   (table : Table I) (group_by : Fin G → Fin I)
   : (table.classes group_by).Nodup
-  := by 
-  rw [Multiset.nodup_iff_count_eq_one]
-  intro group is_group
-  sorry
-
-theorem Table.common_columns_assoc
-  (group : Table I) (group_by : Fin G → Fin I)
-  (f: Fin G' → Fin G)
-  : group.get_common_columns (group_by ∘ f)
-    = group.get_common_columns group_by ∘ f 
-  := by rfl
+  := by sorry
 
 def Table.is_group_of
   (group table : Table I) (group_by : Fin G → Fin I) :=
@@ -52,13 +42,22 @@ theorem Table.group_not_empty
   {table group: Table I} {group_by : Fin G → Fin I}
   (is_group : group.is_group_of table group_by) :
   ∃ row', row' ∈ group
-  := by sorry
+  := by
+  rcases is_group.right with ⟨r, r_in_group, _⟩
+  use r
 
 theorem Table.row_in_table_if_row_in_group
   {group table : Table I} {group_by : Fin G → Fin I} {row : Fin I → Option Nat}
-  (is_group : group.is_group_of table group_by) (row_in_table : row ∈ group) :
+  (is_group : group.is_group_of table group_by) (row_in_group : row ∈ group) :
   row ∈ table
-  :=by sorry
+  := Multiset.mem_of_le is_group.left row_in_group
+
+theorem Table.common_columns_assoc
+  (group : Table I) (group_by : Fin G → Fin I)
+  (f: Fin G' → Fin G)
+  : group.get_common_columns (group_by ∘ f)
+    = group.get_common_columns group_by ∘ f
+  := by rfl
 
 theorem Table.row_in_group_iff
   {group table : Table I} {group_by : Fin G → Fin I} {row : Fin I → Option Nat}
@@ -70,7 +69,7 @@ theorem Table.row_in_group_only_if
   {group table: Table I} {group_by : Fin G → Fin I} {row : Fin I → Option Nat}
   (is_group : group.is_group_of table group_by) (row_in_group : row ∈ group) :
   row ∘ group_by = group.get_common_columns group_by
-  := by 
+  := by
   have row_in_table := row_in_table_if_row_in_group is_group row_in_group
   exact (row_in_group_iff is_group row_in_table).mp row_in_group
 
@@ -97,7 +96,7 @@ theorem Table.count_row_eq_iff
   {table group : Table I} {group_by : Fin G → Fin I}
   (is_group : group.is_group_of table group_by)
   {r : Fin I → Option ℕ} (r_in_table : r ∈ table)
-  : group.count r = table.count r ↔ r ∈ group 
+  : group.count r = table.count r ↔ r ∈ group
   := by
   constructor
   case mp =>
@@ -140,7 +139,7 @@ theorem Table.common_columns_nodup
   {group_by : Fin G → Fin I}
   (is_group : group.is_group_of table group_by)
   : group.is_group_of group group_by
-  := by 
+  := by
   constructor
   case left =>
     simp_all only [le_refl]
@@ -150,13 +149,13 @@ theorem Table.common_columns_nodup
     refine ⟨row_in_group, ?_⟩
     intro row' row'_in_group
     simp_all only [true_iff]
-    exact rows_in_group_match is_group row_in_group row'_in_group 
+    exact rows_in_group_match is_group row_in_group row'_in_group
 
 theorem Table.groups_eq_iff
   {table g g' : Table I} {group_by : Fin G → Fin I}
   (is_group : g.is_group_of table group_by) (is_group' : g'.is_group_of table group_by)
   : g = g' ↔ g.get_common_columns group_by = g'.get_common_columns group_by
-  := by 
+  := by
   constructor
   case mp =>
     simp_all only [implies_true]
@@ -168,7 +167,7 @@ theorem Table.groups_eq_iff
 theorem Table.apply_agg_nodup
   (table : Table I) (agg : Aggregate I G A)
   : (table.apply_agg agg).Nodup
-  := by 
+  := by
   unfold Table.apply_agg
   refine Multiset.Nodup.map_on ?_ (table.classes_nodup agg.group_by)
   intro g₁ g₁_group_table  g₂ g₂_group_table cols_match
@@ -177,13 +176,13 @@ theorem Table.apply_agg_nodup
   funext g'
   apply congrFun at cols_match
   specialize cols_match (Fin.castAdd A g')
-  simp_all only [Fin.append_left] 
+  simp_all only [Fin.append_left]
 
 theorem Table.not_empty_agg_not_empty
   {table : Table I} {r : Fin I → Option Nat}
   (r_in_table : r ∈ table) (agg : Aggregate I G A) :
-  ∃ r' ∈ (table.apply_agg agg), r' ∘ (Fin.castAdd A) = r ∘ agg.group_by 
-  := by 
+  ∃ r' ∈ (table.apply_agg agg), r' ∘ (Fin.castAdd A) = r ∘ agg.group_by
+  := by
   simp only [apply_agg, group_iff]
   rcases row_in_group r_in_table agg.group_by with ⟨group, is_group, r_in_group⟩
   use Fin.append (group.get_common_columns agg.group_by) (group.apply_calls agg.calls)
@@ -196,12 +195,12 @@ theorem Table.not_empty_agg_not_empty
     rw [Function.comp_apply, Fin.append_left]
     apply congrFun (g := r ∘ agg.group_by)
     apply Eq.symm
-    exact row_in_group_only_if is_group r_in_group 
+    exact row_in_group_only_if is_group r_in_group
 
 theorem Table.agg_not_empty_not_empty
   {table : Table I} {agg : Aggregate I G A} {row' : Fin (G + A) → Option Nat}
   (row'_in_table_apply_agg : row' ∈ table.apply_agg agg) :
-  ∃ row ∈ table, row' ∘ (Fin.castAdd A) = row ∘ agg.group_by 
+  ∃ row ∈ table, row' ∘ (Fin.castAdd A) = row ∘ agg.group_by
   := by
   simp only [apply_agg, Multiset.mem_map, group_iff] at row'_in_table_apply_agg
   rcases row'_in_table_apply_agg with ⟨group, is_group, rfl⟩
@@ -222,7 +221,7 @@ theorem Table.row_from_group
   := by
   simp_all only [apply_agg, Multiset.mem_map, group_iff]
 
---- Theorems after this point are specific to the aggregate merge rule
+
 structure Grouping_Restrictor (strict : Fin G → Fin I) (loose : Fin G' → Fin I) where
   restrictor : Fin G' → Fin G
   is_stricter : strict ∘ restrictor = loose
@@ -234,12 +233,12 @@ theorem Table.common_columns_subgroup
   (is_subgroup : group'.is_group_of group strict)
     : group.get_common_columns loose
       = group'.get_common_columns strict ∘ restrictor.restrictor
-  := by 
+  := by
   rcases group_not_empty is_subgroup with ⟨r', r'_in_group'⟩
   rw [← row_in_group_only_if is_subgroup r'_in_group', Function.comp.assoc, restrictor.is_stricter]
   have r'_in_group : r' ∈ group := by
     exact Multiset.mem_of_subset (Multiset.Le.subset is_subgroup.left) r'_in_group'
-  rw [row_in_group_only_if is_group r'_in_group] 
+  rw [row_in_group_only_if is_group r'_in_group]
 
 theorem Table.group_of_group
   {table group group' : Table I}
@@ -248,7 +247,7 @@ theorem Table.group_of_group
   (is_group : group.is_group_of table loose)
   (is_group' : group'.is_group_of group strict)
   : group'.is_group_of table strict
-  := by 
+  := by
   constructor
   case left =>
     exact le_trans is_group'.left is_group.left
@@ -266,7 +265,7 @@ theorem Table.group_of_group
       rw [Table.row_in_group_only_if is_group' r'_in_group']
     case mpr =>
       intro columns_match
-      have r'_in_group : r' ∈ group := by 
+      have r'_in_group : r' ∈ group := by
         rw [row_in_group_iff is_group r'_in_table]
         nth_rw 1 [← restrictor.is_stricter]
         rw [← Function.comp.assoc, ← columns_match, ← common_columns_subgroup restrictor is_group is_group']
@@ -286,7 +285,7 @@ theorem Table.stricter_partitions_group
     rw [Multiset.le_iff_count]
     intro r
     by_cases r ∈ group
-    case pos r_in_group => 
+    case pos r_in_group =>
       rw [count_row_in_group is_group r_in_group]
       by_cases r ∈ group'
       case pos r_in_group' =>
@@ -301,7 +300,7 @@ theorem Table.stricter_partitions_group
       have r_in_table : r ∈ table := row_in_table_if_row_in_group is_group' r_in_group'
       have r_in_group : r ∈ group := (row_in_group_iff is_group r_in_table).mpr columns_match.symm
       simp_all only [not_true_eq_false]
-  case right => 
+  case right =>
     rcases (group_not_empty is_group') with ⟨row', row'_in_group'⟩
     use row'
     constructor
@@ -324,7 +323,7 @@ theorem Table.stricter_partitions_group
         rw [count_row_in_group is_group row_in_group, count_row_in_group is_group' row_in_group']
 
 theorem Table.apply_agg_to_group_le
-  {agg : Aggregate I G A} {loose : Fin G' → Fin I} 
+  {agg : Aggregate I G A} {loose : Fin G' → Fin I}
   {t g : Table I} (restrictor : Grouping_Restrictor agg.group_by loose)
   (is_group : g.is_group_of t loose)
   : g.apply_agg agg ≤ t.apply_agg agg
@@ -339,11 +338,11 @@ theorem Table.apply_agg_to_group_le
   exact group_of_group restrictor is_group group'_is_group
 
 def Table.group_apply_agg_group
-  {agg : Aggregate I G A} {loose : Fin G' → Fin I} 
+  {agg : Aggregate I G A} {loose : Fin G' → Fin I}
   {table group : Table I} (restrictor : Grouping_Restrictor agg.group_by loose)
   (is_group : group.is_group_of table loose)
   : (group.apply_agg agg).is_group_of (table.apply_agg agg) (Fin.castAdd A ∘ restrictor.restrictor)
-  := by 
+  := by
     constructor
     case left =>
       apply Table.apply_agg_to_group_le restrictor is_group
@@ -359,7 +358,7 @@ def Table.group_apply_agg_group
       constructor
       case mp =>
         intro counts_eq
-        have row'_in_group_apply_agg : row' ∈ group.apply_agg agg := 
+        have row'_in_group_apply_agg : row' ∈ group.apply_agg agg :=
           Multiset.mem_of_count_eq_count_mem counts_eq row'_in_table_apply_agg
         rcases agg_not_empty_not_empty row'_in_group_apply_agg with ⟨r', r'_in_group, row'_matches_r'⟩
         rw [← Function.comp.assoc, row'_matches_r', Function.comp.assoc, restrictor.is_stricter, row_in_group_only_if is_group r'_in_group]
@@ -410,12 +409,12 @@ def Aggregate.fst_stricter_than_merge
           rfl
 
 def Table.common_columns_agg
-  {agg : Aggregate I G A} {loose : Fin G' → Fin I} 
+  {agg : Aggregate I G A} {loose : Fin G' → Fin I}
   {table group : Table I} (restrictor : Grouping_Restrictor agg.group_by loose)
   (is_group : group.is_group_of table loose)
   : group.get_common_columns loose =
   (group.apply_agg agg).get_common_columns (Fin.castAdd A ∘ restrictor.restrictor)
-  := by 
+  := by
   rcases group_not_empty is_group with ⟨row, row_in_group⟩
   rcases not_empty_agg_not_empty row_in_group agg with ⟨row', row'_in_group', row'_matches_row⟩
   rw [← row_in_group_only_if (group_apply_agg_group restrictor is_group) row'_in_group', ← Function.comp.assoc, row'_matches_row, ← row_in_group_only_if is_group row_in_group, Function.comp.assoc, restrictor.is_stricter]
@@ -426,7 +425,7 @@ def Table.group_from_group
   {restrictor : Grouping_Restrictor fst.group_by merged.group_by}
   (group'_group_table_apply_fst : group'.is_group_of (table.apply_agg fst) (Fin.castAdd A ∘ restrictor.restrictor))
   : ∃ group : Table I, group.is_group_of table merged.group_by ∧ group.apply_agg fst = group'
-    := by 
+    := by
     rcases group_not_empty group'_group_table_apply_fst with ⟨row', row'_in_group'⟩
     have row'_in_table_apply_fst : row' ∈ table.apply_agg fst := by
       exact row_in_table_if_row_in_group group'_group_table_apply_fst row'_in_group'
@@ -442,23 +441,23 @@ def Table.group_from_group
       rw [← row_in_group_only_if group'_group_table_apply_fst row'_in_group']
       rw [← row_in_group_only_if group_apply_fst_group_rest r'_in_group_apply_fst]
       rw [← Function.comp.assoc, ← Function.comp.assoc, row_matches_row', r'_matches_row]
-    rfl 
+    rfl
 
 theorem Aggregate.merged_eq_snd
   {fst: Aggregate I G A} {snd : Aggregate (G + A) G' A'}
-  (merged_eq : fst.merge snd = some merged) 
+  (merged_eq : fst.merge snd = some merged)
   : Fin.castAdd A ∘ (fst_stricter_than_merge merged_eq).restrictor = snd.group_by
   := by rfl
 
 theorem AggCall.merge_valid
   (col : Multiset (Multiset (Option ℕ)))
-  {fst_call snd_call merged_call : AggCall} 
+  {fst_call snd_call merged_call : AggCall}
   (merge_valid : fst_call.merge snd_call = some merged_call)
   : merged_call.call col.join = (col.map fst_call.call |> snd_call.call)
     := by
     unfold AggCall.merge at merge_valid
-    cases fst_call 
-    <;> cases snd_call 
+    cases fst_call
+    <;> cases snd_call
     <;> simp_all only [Option.some_inj]
     <;> unfold AggCall.call
     <;> simp only [← merge_valid]
@@ -492,19 +491,19 @@ theorem Fin.gt_help
     unfold Fin.castGT
     simp_all only [natAdd_mk, ge_iff_le, add_tsub_cancel_of_le, Fin.eta]
 
-def Aggregate.merge_succesfull_column 
+def Aggregate.merge_succesfull_column
   {fst : Aggregate I G A} {snd : Aggregate (G + A) G' A'}
   (merged_succesfully : fst.merge snd = some merged) (a' : Fin A')
   : Σ' (h :G ≤ (snd.calls a').2),
     ∃ merged_call : AggCall,
       (fst.calls (Fin.castGT (snd.calls a').2 h)).1.merge (snd.calls a').1 = some merged_call
-  where 
+  where
   fst := by
     unfold Aggregate.merge at merged_succesfully
     split at merged_succesfully
     case inr => simp_all only [not_and, not_forall, not_le]
-    case inl h => exact h.right a' 
-  snd := by 
+    case inl h => exact h.right a'
+  snd := by
     unfold Aggregate.merge at merged_succesfully
     split at merged_succesfully
     case inr => simp_all only [not_and, not_forall, not_le]
@@ -519,13 +518,19 @@ def Aggregate.merge_succesfull_column
         case h_2 => simp_all only [imp_false, Option.isSome_none, Bool.false_eq_true]
         case h_1 call? call call_eq =>
           use call
-  
+
 theorem Aggregate.merge_valid_group
   {fst : Aggregate I G A} {snd : Aggregate (G + A) G' A'}
   (merged_succesfully : fst.merge snd = some merged)
   {group table : Table I}
   (group_is_group_table_merged : group.is_group_of table merged.group_by)
-  : Fin.append ((group.apply_agg fst).get_common_columns snd.group_by) ((group.apply_agg fst).apply_calls snd.calls) = Fin.append (group.get_common_columns merged.group_by) (group.apply_calls merged.calls) := by
+  : Fin.append
+      ((group.apply_agg fst).get_common_columns snd.group_by)
+      ((group.apply_agg fst).apply_calls snd.calls) =
+    Fin.append
+      (group.get_common_columns merged.group_by)
+      (group.apply_calls merged.calls)
+    := by
     apply funext
     intro col
     induction col using Fin.addCases
@@ -582,18 +587,18 @@ theorem Aggregate.merge_valid_group
             rw [AggCall.merge_valid col merge_valid]
 
 theorem Aggregate.merge_valid
-  {fst : Aggregate I G A} {snd : Aggregate (G + A) G' A'} {merged : Aggregate I G' A'} 
+  {fst : Aggregate I G A} {snd : Aggregate (G + A) G' A'} {merged : Aggregate I G' A'}
   (merged_succesfully : fst.merge snd = some merged) (t : Table I)
   : t.apply_agg merged = (t.apply_agg fst).apply_agg snd
   := by
-    -- Since Table.apply_agg returns a bag without duplicates, 
-    -- it suffices to show that for an arbitrary row r: 
-    -- r ∈ t.apply_agg merged ↔ r ∈ (t.apply_agg fst).apply_agg snd 
+    -- Since Table.apply_agg returns a bag without duplicates,
+    -- it suffices to show that for an arbitrary row r:
+    -- r ∈ t.apply_agg merged ↔ r ∈ (t.apply_agg fst).apply_agg snd
     rw [Multiset.Nodup.ext (Table.apply_agg_nodup t merged) (Table.apply_agg_nodup (t.apply_agg fst) snd)]
     intro r
     apply Iff.intro
 
-    -- Direction 1: 
+    -- Direction 1:
     -- r ∈ t.apply_agg merged → r ∈ (t.apply_agg fst).apply_agg snd
     case mp =>
       -- Assume r ∈ t.apply_agg merged
@@ -617,9 +622,9 @@ theorem Aggregate.merge_valid
       -- (g.apply_agg fst) is a group of (t.apply_agg fst) under snd.group_by
       -- and (g.apply_agg fst).apply_agg snd = g.apply_agg merged
       use g.apply_agg fst
-      
 
-      -- Since merged is the result of (fst.merge snd) and 
+
+      -- Since merged is the result of (fst.merge snd) and
       -- g is a group of t under merged.group_by
       -- Table.group_apply_agg_group gives that
       -- (g.apply_agg fst) is a group of (t.apply_agg fst) under snd.group_by
@@ -627,10 +632,10 @@ theorem Aggregate.merge_valid
         rw [← Aggregate.merged_eq_snd merged_succesfully]
         simp_all only [Table.group_apply_agg_group (fst_stricter_than_merge merged_succesfully)]
       refine ⟨g_apply_fst_group_t_snd, ?_⟩
-      
-      -- Since merged is the result of (fst.merge snd) and 
+
+      -- Since merged is the result of (fst.merge snd) and
       -- g is a group of t under merged.group_by
-      -- Aggregate.merge_valid_group gives that 
+      -- Aggregate.merge_valid_group gives that
       -- (g.apply_agg fst).apply_agg snd = g.apply_agg merged
       exact Aggregate.merge_valid_group merged_succesfully g_group_t_merged
 
@@ -646,16 +651,16 @@ theorem Aggregate.merge_valid
       -- (g'.apply_agg snd) ⊆ (t.apply_agg merged)
       simp only [Multiset.mem_map, Table.group_iff] at r_from_t_apply_fst_apply_snd
       rcases r_from_t_apply_fst_apply_snd with ⟨g', g'_group_t_apply_fst_snd, rfl⟩
-      
-      -- Since merged is the result of (fst.merge snd) and 
+
+      -- Since merged is the result of (fst.merge snd) and
       -- g' is a group of (t.apply_agg fst) under snd.group_by
-      -- Table.group_from_group gives that 
+      -- Table.group_from_group gives that
       -- there exists some group g of t under merged.group_by s.t. (g.apply_agg fst) = g'
       -- Thus, to show (g'.apply_agg snd) ⊆ (t.apply_agg merged), it suffices to show
       -- (g.apply_agg fst).apply_agg snd ⊆ (t.apply_agg merged)
       rw [← merged_eq_snd merged_succesfully] at g'_group_t_apply_fst_snd
       rcases Table.group_from_group g'_group_t_apply_fst_snd with ⟨g, g_is_group_t_merged, rfl⟩
-      
+
       -- To show that (g.apply_agg fst).apply_agg snd ⊆ (t.apply_agg merged), it suffices to show
       -- that there exists some group a of t under merged.group_by s.t.
       -- (g.apply_agg fst).apply_agg snd = a.apply_agg merged
@@ -663,13 +668,12 @@ theorem Aggregate.merge_valid
 
       -- I claim g is such an α.
       -- I have already shown that g is a group of t under merged, so it remains to be shown that
-      -- (g.apply_agg fst).apply_agg snd = g.apply_agg merged 
+      -- (g.apply_agg fst).apply_agg snd = g.apply_agg merged
       use g
       refine ⟨g_is_group_t_merged, ?_⟩
-      
-      -- Since merged is the result of (fst.merge snd) and 
+
+      -- Since merged is the result of (fst.merge snd) and
       -- g is a group of t under merged.group_by
-      -- Aggregate.merge_valid_group gives that 
+      -- Aggregate.merge_valid_group gives that
       -- (g.apply_agg fst).apply_agg snd = g.apply_agg merged
       exact Eq.symm (merge_valid_group merged_succesfully g_is_group_t_merged)
-
