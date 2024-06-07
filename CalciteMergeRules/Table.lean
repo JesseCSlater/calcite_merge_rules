@@ -44,6 +44,22 @@ structure Aggregate (I G A : ℕ) where
   group_by : Fin G → Fin I
   calls : Fin A → AggCall × Fin I
 
+def Table.is_group_of
+  (group table : Table I) (group_by : Fin G → Fin I) :=
+    group ≤ table ∧
+    ∃ witness ∈ group, ∀ a ∈ table,
+      (witness ∘ group_by = a ∘ group_by → group.count a = table.count a)
+      ∧ (witness ∘ group_by ≠ a ∘ group_by → group.count a = 0)
+
+instance (table : Table I) (group_by : Fin G → Fin I) : 
+  DecidablePred (λ group : Table I => group.is_group_of table group_by) := by
+  intro group
+  refine @And.decidable ?_ ?_ ?_ ?_
+  case refine_1 => infer_instance
+  case refine_2 =>
+    refine @Multiset.decidableExistsMultiset ?_ ?_ ?_ ?_
+    infer_instance
+
 /- Seperate a table into a multiset based on the equivalence
    classes of the group_by columns.
    Here, my choice of using a multiset instead of a list forces
@@ -56,21 +72,20 @@ structure Aggregate (I G A : ℕ) where
    to multiset, since this would maintain effeciency, but
 -/
 def Table.classes
-  (m : Table I) (group_by : Fin G → Fin I)
+  (table : Table I) (group_by : Fin G → Fin I)
   : Multiset (Table I) :=
-  -- Start with the set of all subtables of m
-  let x := m.powerset
-  -- Remove all subtables which contain a pair of rows
-  -- which have a mismatch in one of the group by columns.
-  |>.filter (λ p =>
-              ∀ row₁ ∈ p,
-              ∀ row₂ ∈ p,
-              ∀ col : Fin G,
-                row₁ (group_by col) =
-                  row₂ (group_by col))
-  -- Remove all subtables which are a subset of another table
-  x.filter (λ p => ∀ q ∈ x, p ≤ q → p = q)
+  table.powerset
+  |>.filter (λ group : Table I => group.is_group_of table group_by)
+  |>.dedup
 
+@[simp]
+theorem Table.group_iff
+  (table group : Table I) (group_by : Fin G → Fin I)
+  : group ∈ table.classes group_by ↔
+      group.is_group_of table group_by
+  := by 
+  unfold classes is_group_of
+  simp_all only [Multiset.mem_dedup, Multiset.mem_filter, Multiset.mem_powerset, and_self_left]
 
 /- Get the unique element of each row which is used for
    grouping of the table which is already the result of
@@ -82,9 +97,10 @@ def Table.classes
    and then writing a function on lists and raising it to
    multisets.
 -/
+
 def Table.get_common_columns
   (group : Table I) (group_by : Fin G → Fin I)
-  : Fin G → Option ℕ :=
+  : Fin G → Option ℕ := 
   λ g =>
     group.map (λ row => row (group_by g))
     |>.sort Option.Le
