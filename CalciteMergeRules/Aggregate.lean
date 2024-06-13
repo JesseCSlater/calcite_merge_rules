@@ -12,7 +12,7 @@ theorem Multiset.mem_of_count_eq_count_mem
 theorem Multiset.count_join
   (S : Multiset (Multiset α)) (a : α) [DecidableEq α]
   : S.join.count a = (S.map (·.count a)).sum
-  := by 
+  := by
   induction S using Multiset.induction
   case empty => rfl
   case cons m S ih => simp_all only [join_cons, count_add, map_cons, sum_cons]
@@ -29,12 +29,12 @@ theorem Multiset.filter_dedup
 theorem Multiset.dedup_all
   {s : Multiset α} (h : ∀ a' ∈ s, a = a') (a_in_s : a ∈ s) [DecidableEq α]
   : s.dedup = {a}
-  := by 
+  := by
   induction s using Multiset.induction
   case empty => simp_all only [not_mem_zero, false_implies, implies_true]
   case cons a' s' ih =>
     by_cases a ∈ s'
-    case pos a_in_s' => 
+    case pos a_in_s' =>
       have h' : ∀ a' ∈ s', a = a' := by
         intro a' a'_in_s'
         exact h a' (mem_cons_of_mem a'_in_s')
@@ -55,8 +55,8 @@ theorem Table.row_in_table_if_row_in_group
 
 theorem Table.row_in_group
   {table : Table I} {r : Fin I → Option ℕ}
-  (r_in_table : r ∈ table) (group_by : Fin G → Fin I) 
-  : is_group_of (table.filter (λ r' => r ∘ group_by = r' ∘ group_by)) table group_by 
+  (r_in_table : r ∈ table) (group_by : Fin G → Fin I)
+  : is_group_of (table.filter (λ r' => r ∘ group_by = r' ∘ group_by)) table group_by
   := by
   constructor
   case left =>
@@ -113,7 +113,7 @@ theorem Table.common_columns_valid
   funext g
   have n_empty : ∃ r, r ∈ Multiset.map (fun row => row (group_by g)) group := by
     simp only [Multiset.mem_map]
-    rcases is_group.right with ⟨row, row_in_group, _⟩ 
+    rcases is_group.right with ⟨row, row_in_group, _⟩
     use row (group_by g)
     use row
   rcases n_empty with ⟨r, r_in_map⟩
@@ -121,7 +121,7 @@ theorem Table.common_columns_valid
     apply List.ne_nil_of_length_pos
     simp only [Multiset.length_sort, Multiset.card_pos_iff_exists_mem]
     use r
-  rcases List.exists_cons_of_ne_nil sort_ne_nil with ⟨r', l', eq_cons⟩ 
+  rcases List.exists_cons_of_ne_nil sort_ne_nil with ⟨r', l', eq_cons⟩
   rw [eq_cons]
   simp only [Function.comp_apply, Option.join, List.head?_cons, Option.some_bind, id_eq]
   have r'_in_sort : r' ∈ Multiset.sort Option.Le (Multiset.map (fun row => row (group_by g)) group) := by
@@ -140,7 +140,7 @@ theorem Table.row_in_group_iff
   {group table : Table I} {group_by : Fin G → Fin I} {row : Fin I → Option Nat}
   (is_group : group.is_group_of table group_by) (row_in_table : row ∈ table) :
   row ∈ group ↔ row ∘ group_by = group.get_common_columns group_by
-  := by 
+  := by
   constructor
   case mp =>
     intro row_in_group
@@ -164,7 +164,7 @@ theorem Table.row_in_group_mem
   {table : Table I} {row : Fin I → Option Nat}
   (row_in_table : row ∈ table) (group_by : Fin G → Fin I)
   : ∃ group : Table I, group.is_group_of table group_by ∧ row ∈ group
-  := by 
+  := by
   have h := row_in_group row_in_table group_by
   use (Multiset.filter (fun r' => row ∘ group_by = r' ∘ group_by) table)
   simp_all only [Multiset.mem_filter, and_self]

@@ -118,7 +118,7 @@ theorem Table.apply_agg_to_group_le
   simp only [and_true]
   exact group_of_group restrictor is_group group'_is_group
 
-def Table.group_apply_agg_group
+theorem Table.group_apply_agg_group
   {agg : Aggregate I G A} {loose : Fin G' → Fin I}
   {table group : Table I} (restrictor : Grouping_Restrictor agg.group_by loose)
   (is_group : group.is_group_of table loose)
@@ -192,18 +192,18 @@ def Aggregate.fst_stricter_than_merge
           simp_rw [← merged_eq]
           rfl
 
-def Table.common_columns_agg
+theorem Table.common_columns_agg
   {agg : Aggregate I G A} {loose : Fin G' → Fin I}
   {table group : Table I} (restrictor : Grouping_Restrictor agg.group_by loose)
   (is_group : group.is_group_of table loose)
   : group.get_common_columns loose =
   (group.apply_agg agg).get_common_columns (Fin.castAdd A ∘ restrictor.restrictor)
-  := by 
+  := by
   rcases group_not_empty is_group with ⟨row, row_in_group⟩
   rcases not_empty_agg_not_empty row_in_group agg with ⟨row', row'_in_group', row'_matches_row⟩
   rw [← row_in_group_only_if (group_apply_agg_group restrictor is_group) row'_in_group', ← Function.comp.assoc, row'_matches_row, ← row_in_group_only_if is_group row_in_group, Function.comp.assoc, restrictor.is_stricter]
 
-def Table.group_from_group
+theorem Table.group_from_group
   {fst: Aggregate I G A} {merged: Aggregate I G' A'}
   {table : Table I} {group' : Table (G + A)}
   {restrictor : Grouping_Restrictor fst.group_by merged.group_by}
@@ -263,18 +263,6 @@ theorem AggCall.merge_valid
       rfl
     }
 
-theorem Fin.lt_help
-  {i : Fin (n + m)} (h: i < n)
-  : i = Fin.castAdd m (Fin.castLT' i h)
-  := by apply Eq.refl
-
-theorem Fin.gt_help
-  {i : Fin (n + m)} (h : n ≤ i)
-  : i = Fin.natAdd n (Fin.castGT i h)
-  := by
-    unfold Fin.castGT
-    simp_all only [natAdd_mk, ge_iff_le, add_tsub_cancel_of_le, Fin.eta]
-
 theorem Aggregate.merge_succesfull_a'_ge_G
   {fst : Aggregate I G A} {snd : Aggregate (G + A) G' A'}
   (merged_succesfully : fst.merge snd = some merged) (a' : Fin A')
@@ -296,16 +284,23 @@ theorem Aggregate.merge_succesfull_column
   case inl =>
     simp_all only
     split at merged_succesfully
-    case inr => 
+    case inr =>
       simp_all only [imp_false]
     case inl all_calls_merged =>
       simp_all only [Option.some.injEq]
       have call_merged := all_calls_merged a'
       split at call_merged
-      case h_2 => 
+      case h_2 =>
         simp_all only [imp_false, Option.isSome_none, Bool.false_eq_true]
       case h_1 call? call call_eq =>
         simp_all only [← merged_succesfully, Option.isSome_some, Option.get_some, and_self]
+
+theorem Fin.gt_help
+  {i : Fin (n + m)} (h : n ≤ i)
+  : i = Fin.natAdd n (Fin.castGT i h)
+  := by
+    unfold Fin.castGT
+    simp_all only [natAdd_mk, ge_iff_le, add_tsub_cancel_of_le, Fin.eta]
 
 theorem Aggregate.merge_succesfull_group
   {fst : Aggregate I G A} {snd : Aggregate (G + A) G' A'}
@@ -381,7 +376,7 @@ theorem Aggregate.merge_valid
         rw [← Aggregate.merged_eq_snd merged_succesfully]
         simp_all only [Table.group_apply_agg_group (fst_stricter_than_merge merged_succesfully)]
       refine ⟨g_apply_fst_group_t_snd, ?_⟩
-      
+
       -- Since merged is the result of (fst.merge snd) and
       -- g is a group of t under merged.group_by
       -- Aggregate.merge_valid_group gives that
@@ -426,6 +421,3 @@ theorem Aggregate.merge_valid
       -- Aggregate.merge_valid_group gives that
       -- (g.apply_agg fst).apply_agg snd = g.apply_agg merged
       exact Eq.symm (merge_succesfull_group merged_succesfully g_is_group_t_merged)
-
-
-
